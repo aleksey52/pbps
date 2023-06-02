@@ -11,9 +11,11 @@ extern char *method, // "GET" or "POST"
     *prot,           // "HTTP/1.1"
     *payload,        // for POST
     *logMessage,
-    *responseSize;
+    *responseSize,
+    *public_dir;
 
 extern int payload_size;
+extern int uid;
 
 // Server control functions
 void serve_forever(const char *PORT);

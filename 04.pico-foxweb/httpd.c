@@ -32,12 +32,14 @@ char *method, // "GET" or "POST"
     *prot,    // "HTTP/1.1"
     *payload, // for POST
     *logMessage,
-    *responseSize;
+    *responseSize,
+    *public_dir;
 
 char *referer,
     *userAgent;
 
 int payload_size;
+int uid;
 struct sockaddr_in clientaddr;
 
 void serve_forever(const char *PORT) {
@@ -79,6 +81,14 @@ void serve_forever(const char *PORT) {
     } else {
       if (fork() == 0) {
         close(listenfd);
+        if (chroot(public_dir) != 0) {
+            perror("chroot error");
+            exit(1);
+        }
+        if (setuid(uid) != 0) {
+            perror("setuid error");
+            exit(1);
+        }
         respond(slot);
         close(clients[slot]);
         clients[slot] = -1;

@@ -1,5 +1,8 @@
 #include "httpd.h"
 #include <sys/stat.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <dirent.h>
 
 #define CHUNK_SIZE 1024 // read 1024 bytes at a time
 
@@ -7,11 +10,17 @@
 #define INDEX_HTML "/index.html"
 #define NOT_FOUND_HTML "/404.html"
 
-char * public_dir;
-
 int main(int c, char **v) {
   char *port = c <= 1 ? "8000" : v[1];
   public_dir = c <= 2 ? "./webroot" : v[2];
+  char *username = c <=3 ? "picofoxweb" : v[3];
+  struct passwd *p;
+  if ((p = getpwnam(username)) == NULL) {
+      perror(username);
+      exit(1);
+  }
+  uid = p->pw_uid;
+  printf("%d", uid);
   serve_forever(port);
   return 0;
 }
@@ -49,7 +58,7 @@ void route() {
 
   GET("/")
     char index_html[40];
-    sprintf(index_html, "%s%s", public_dir, INDEX_HTML);
+    sprintf(index_html, "%s", INDEX_HTML);
 
     HTTP_200
     if (file_exists(index_html)) {
@@ -69,6 +78,20 @@ void route() {
       h++;
     }
 
+  GET("/list")
+    HTTP_200
+    printf("List of files and dirs in root:\n\n");
+
+    DIR *d;
+    struct dirent *dir;
+    d = opendir("/");
+    if (d) {
+        while ((dir = readdir(d)) != NULL) {
+            printf("%s\n", dir->d_name);
+        }
+        closedir(d);
+    }
+
   POST("/")
     HTTP_201
     printf("Wow, seems that you POSTed %d bytes.\n", payload_size);
@@ -78,14 +101,14 @@ void route() {
 
   GET(uri)
     char file_name[255];
-    sprintf(file_name, "%s%s", public_dir, uri);
+    sprintf(file_name, "%s", uri);
 
     if (file_exists(file_name)) {
       HTTP_200
       read_file(file_name);
     } else {
       HTTP_404;
-      sprintf(file_name, "%s%s", public_dir, NOT_FOUND_HTML);
+      sprintf(file_name, "%s",  NOT_FOUND_HTML);
       if (file_exists(file_name))
         read_file(file_name);
     }

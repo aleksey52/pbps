@@ -3,10 +3,10 @@ Description=Переработанная редакция pico HTTP-сервер
 After=network.target
 
 [Service]
-ExecStart=/usr/local/sbin/PICOFoxweb 8080 /var/www/picoweb/webroot
+ExecStart=/usr/local/sbin/PICOFoxweb 1337 /var/www/picoweb/webroot picofoxweb
 KillMode=process
-User=picofoxweb
-Group=picofoxweb
+User=root
+Group=root
 
 [Install]
 WantedBy=multi-user.target
