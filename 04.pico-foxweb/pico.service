@@ -1,0 +1,12 @@
+[Unit]
+Description=Переработанная редакция pico HTTP-сервера
+After=network.target
+
+[Service]
+ExecStart=/usr/local/sbin/PICOFoxweb 8080 /var/www/picoweb/webroot
+KillMode=process
+User=picofoxweb
+Group=picofoxweb
+
+[Install]
+WantedBy=multi-user.target

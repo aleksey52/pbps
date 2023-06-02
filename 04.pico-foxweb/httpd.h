@@ -9,7 +9,9 @@ extern char *method, // "GET" or "POST"
     *uri,            // "/index.html" things before '?'
     *qs,             // "a=1&b=2" things after  '?'
     *prot,           // "HTTP/1.1"
-    *payload;        // for POST
+    *payload,        // for POST
+    *logMessage,
+    *responseSize;
 
 extern int payload_size;
 
@@ -31,10 +33,10 @@ void route();
 // Response
 #define RESPONSE_PROTOCOL "HTTP/1.1"
 
-#define HTTP_200 printf("%s 200 OK\n\n", RESPONSE_PROTOCOL)
-#define HTTP_201 printf("%s 201 Created\n\n", RESPONSE_PROTOCOL)
-#define HTTP_404 printf("%s 404 Not found\n\n", RESPONSE_PROTOCOL)
-#define HTTP_500 printf("%s 500 Internal Server Error\n\n", RESPONSE_PROTOCOL)
+#define HTTP_200 {printf("%s 200 OK\n\n", RESPONSE_PROTOCOL); sprintf(logMessage, "%s 200", logMessage);}
+#define HTTP_201 {printf("%s 201 Created\n\n", RESPONSE_PROTOCOL); sprintf(logMessage, "%s 201", logMessage);}
+#define HTTP_404 {printf("%s 404 Not found\n\n", RESPONSE_PROTOCOL); sprintf(logMessage, "%s 404", logMessage);}
+#define HTTP_500 {printf("%s 500 Internal Server Error\n\n", RESPONSE_PROTOCOL); sprintf(logMessage, "%s 500", logMessage);}
 
 // some interesting macro for `route()`
 #define ROUTE_START() if (0) {

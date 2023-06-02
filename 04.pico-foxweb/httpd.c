@@ -10,10 +10,13 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <syslog.h>
+#include <time.h>
 
 #define MAX_CONNECTIONS 1000
 #define BUF_SIZE 65535
 #define QUEUE_SIZE 1000000
+#define LOG_MESSAGE_SIZE 1024
 
 static int listenfd;
 int *clients;
@@ -27,18 +30,20 @@ char *method, // "GET" or "POST"
     *uri,     // "/index.html" things before '?'
     *qs,      // "a=1&b=2" things after  '?'
     *prot,    // "HTTP/1.1"
-    *payload; // for POST
+    *payload, // for POST
+    *logMessage,
+    *responseSize;
+
+char *referer,
+    *userAgent;
 
 int payload_size;
+struct sockaddr_in clientaddr;
 
 void serve_forever(const char *PORT) {
-  struct sockaddr_in clientaddr;
   socklen_t addrlen;
 
   int slot = 0;
-
-  printf("Server started %shttp://127.0.0.1:%s%s\n", "\033[92m", PORT,
-         "\033[0m");
 
   // create shared memory for client slot array
   clients = mmap(NULL, sizeof(*clients) * MAX_CONNECTIONS,
@@ -52,6 +57,16 @@ void serve_forever(const char *PORT) {
 
   // Ignore SIGCHLD to avoid zombie threads
   signal(SIGCHLD, SIG_IGN);
+
+  // journal
+  openlog(NULL, 0, LOG_USER);
+  logMessage = malloc(LOG_MESSAGE_SIZE);
+  responseSize = malloc(16);
+  referer = malloc(256);
+  userAgent = malloc(256);
+
+  sprintf(logMessage, "Server started %shttp://127.0.0.1:%s%s\n", "\033[92m", PORT, "\033[0m");
+  syslog(LOG_INFO, "%s", logMessage);
 
   // ACCEPT connections
   while (1) {
@@ -178,7 +193,20 @@ void respond(int slot) {
 
     uri_unescape(uri);
 
-    fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
+    // fprintf(stderr, "\x1b[32m + [%s] %s\x1b[0m\n", method, uri);
+
+    time_t rawtime;
+    struct tm * timeinfo;
+    char dateTime [80];
+    time (&rawtime);
+    timeinfo = localtime (&rawtime);
+    strftime(dateTime, 30, "%d/%b/%Y:%H:%M:%S %z", timeinfo);
+
+    char *clientIp = inet_ntoa(clientaddr.sin_addr);
+    sprintf(logMessage, "%s - - [%s] \"%s %s %s\"", clientIp, dateTime, method, uri, prot);
+    sprintf(responseSize, "-");
+    sprintf(referer, "-");
+    sprintf(responseSize, "-");
 
     qs = strchr(uri, '?');
 
@@ -200,10 +228,17 @@ void respond(int slot) {
       while (*val && *val == ' ')
         val++;
 
+      if (strcmp(key, "User-Agent") == 0) {
+          sprintf(userAgent, "\"%s\"", val);
+      }
+      else if (strcmp(key, "Referer") == 0) {
+          sprintf(referer, "\"%s\"", val);
+      }
+
       h->name = key;
       h->value = val;
       h++;
-      fprintf(stderr, "[H] %s: %s\n", key, val);
+      // fprintf(stderr, "[H] %s: %s\n", key, val);
       t = val + 1 + strlen(val);
       if (t[1] == '\r' && t[2] == '\n')
         break;
@@ -221,8 +256,11 @@ void respond(int slot) {
     // call router
     route();
 
-    // tidy up
+    sprintf(logMessage, "%s %s %s %s", logMessage, responseSize, referer, userAgent);
+    syslog(LOG_INFO, "%s", logMessage);
+
     fflush(stdout);
+    // tidy up
     shutdown(STDOUT_FILENO, SHUT_WR);
     close(STDOUT_FILENO);
   }
